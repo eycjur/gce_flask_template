@@ -19,6 +19,9 @@ app:
 	docker compose exec app sh
 root:
 	docker compose exec -u root app sh
+create-docker-project:
+	docker build -t app .
+	docker run -e PORT=8000 -p 8000:8000 --rm app
 create-project:
 	@make build
 	@make up

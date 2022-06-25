@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.12.1.min.js"></script>
+{% endblock %}
+
+{% block title %}transition{% endblock %}
+
+{% block content %}
+<h1>
+  transition
+</h1>
+<div>
+  <!-- Graph -->
+  <div id="graph-area"></div>
+  
+  <form action="/update" method="PUT">
+    <input type="date" name="date" id="today" required>
+    <input type="number" name="value" required>
+  </form>
+
+  <div class="container">
+    <table class="table">
+      <tr>
+        <th>Id</th>
+        <th>Date</th>
+        <th>Value</th>
+        <th>Delete</th>
+      </tr>
+      {% for i, row in df.iterrows() %}
+      <tr>
+        <td>{{ i }}</td>
+        <td>{{ row["date"] }}</td>
+        <td>{{ row["value"] }}</td>
+        <td><a class="btn btn-primary" href="/delete/{{ row['id'] }}" data-method="delete">削除</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+<script>
+  // 現在日付を入れる
+  document.querySelector("#today").valueAsDate = new Date();
+
+  // plotlyの描画
+  let graphJson = JSON.parse({{ graph_json | tojson }});
+  const graphArea = document.getElementById("graph-area");
+  Plotly.newPlot(
+    graphArea,
+    graphJson.data,
+    graphJson.layout || {}
+  );
+</script>
+
+{% endblock %}

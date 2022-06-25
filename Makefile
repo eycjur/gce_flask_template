@@ -1,3 +1,38 @@
+include .env
+
+all: docker-build server
+
+# docker関連
+.PHONY: docker-build
+docker-build:
+	docker build -t gcr.io/$(PROJECT_ID)/$(CONTAINER_NAME) .
+
+.PHONY: docker-push
+docker-push:
+	docker push gcr.io/$(PROJECT_ID)/$(CONTAINER_NAME)
+
+.PHONY: docker-run
+docker-run:
+	docker run \
+	--rm \
+	-it \
+	-v $(shell pwd)/app:/app \
+	-p 80:8000 \
+	gcr.io/$(PROJECT_ID)/$(CONTAINER_NAME) \
+	bash
+
+.PHONY: server
+server:
+	docker run \
+	--rm \
+	-it \
+	-v $(shell pwd)/app:/app \
+	-p 80:8000 \
+	gcr.io/$(PROJECT_ID)/$(CONTAINER_NAME) \
+	gunicorn --bind :8000 --reload app:app
+
+	
+
 ## dockerコマンド
 # 確認
 images:

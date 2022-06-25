@@ -1,2 +1,9 @@
+numpy
+pandas
+plotly
 Flask
 gunicorn
+PyYAML
+python-dotenv
+SQLAlchemy
+PyMySQL

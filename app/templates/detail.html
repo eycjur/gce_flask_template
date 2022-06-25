@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.12.1.min.js"></script>
+{% endblock %}
+
+{% block title %}detail{% endblock %}
+
+{% block content %}
+<h1>
+  detail {{ row["date"] }}
+</h1>
+<div>
+  <form action="/update/{{ row["date"] }}" method="GET">
+    <input type="number" name="value" step="0.01" required value="{{ row['value'] }}">
+  </form>
+
+  <!-- Graph -->
+  <div class="container">
+    <div class="row">
+      {% for img in imgs %}
+      <div id="graph-area-{{ loop.index0 }}" class="col-md-6 col-lg-4 m-0 p-0"></div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="container">
+    <form action="/upload" method="POST"  enctype="multipart/form-data">
+      <input type="file" name="imgs" accept="image/*" multiple required>
+      <button type="submit">送信する</button>
+    </form>
+  </div>
+
+  <div class="container">
+    <a href="/">topへ戻る</a>
+  </div>
+</div>
+
+<script>
+  // plotlyの描画
+  {% for img in imgs %}
+  let graphJson{{ loop.index0 }} = JSON.parse({{ img | tojson }});
+  const graphArea{{ loop.index0 }} = document.getElementById("graph-area-{{ loop.index0 }}");
+  Plotly.newPlot(
+    graphArea{{ loop.index0 }},
+    graphJson{{ loop.index0 }}.data,
+    graphJson{{ loop.index0 }}.layout || {}
+  );
+  {% endfor %}
+</script>
+
+{% endblock %}

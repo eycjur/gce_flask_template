@@ -7,3 +7,4 @@ PyYAML
 python-dotenv
 SQLAlchemy
 PyMySQL
+Pillow

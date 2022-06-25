@@ -1,8 +1,15 @@
-# Cloud Run Test
+# GCE Flask Template
+
+## Quick Start
+```bash
+make
+```
+
+## Access
+there is an ip limit.
+
+- http://35.202.165.139:80/
+- http://localhost:8000/
 
 ## Warning
-- CONTAINER_NAME must use only lowercase alphanumeric characters and dashes.
-
-## Reference
-- [Cloud Runに入門してみる](https://qiita.com/Canon11/items/cc461dc57d5d9fbb5ca9)
-- [gcloud run deploy](https://cloud.google.com/sdk/gcloud/reference/run/deploy)
+インスタンスを切る

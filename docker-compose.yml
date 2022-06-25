@@ -1,0 +1,12 @@
+version: '3'
+services:
+  app:
+    image: 'gcr.io/${PROJECT_ID}/${CONTAINER_NAME}'
+    tty: true
+    volumes:
+      - .:/workspace:cached
+    env_file:
+      - .env
+    ports:
+      - "${PORT}:${PORT}"
+    command: /bin/sh -c "while sleep 1000; do :; done"

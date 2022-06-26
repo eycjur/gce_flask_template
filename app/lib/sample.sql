@@ -1,3 +1,4 @@
+USE weather_db;
 SHOW tables;
 
 DROP TABLE IF EXISTS weather_log;

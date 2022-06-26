@@ -18,14 +18,17 @@
   <!-- Graph -->
   <div class="container">
     <div class="row">
-      {% for img in imgs %}
-      <div id="graph-area-{{ loop.index0 }}" class="col-md-6 col-lg-4 m-0 p-0"></div>
+      {% for file_name in file_names %}
+      <div class="container col-md-6 col-lg-4 mx-auto">
+        <div id="graph-area-{{ loop.index0 }}" class="m-2"></div>
+        <a href="/delete_img/{{ file_name }}" class="btn btn-primary">削除</a>
+      </div>
       {% endfor %}
     </div>
   </div>
 
   <div class="container">
-    <form action="/upload" method="POST"  enctype="multipart/form-data">
+    <form action="/upload/{{ row['date'] }}" method="POST"  enctype="multipart/form-data">
       <input type="file" name="imgs" accept="image/*" multiple required>
       <button type="submit">送信する</button>
     </form>
@@ -38,8 +41,8 @@
 
 <script>
   // plotlyの描画
-  {% for img in imgs %}
-  let graphJson{{ loop.index0 }} = JSON.parse({{ img | tojson }});
+  {% for graph_json in graph_jsons %}
+  let graphJson{{ loop.index0 }} = JSON.parse({{ graph_json | tojson }});
   const graphArea{{ loop.index0 }} = document.getElementById("graph-area-{{ loop.index0 }}");
   Plotly.newPlot(
     graphArea{{ loop.index0 }},

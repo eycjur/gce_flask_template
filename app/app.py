@@ -1,20 +1,14 @@
 import os
-import json
-import re
-from this import d
 
 import numpy as np
-import pandas as pd
 from PIL import Image
-import plotly
-import plotly.graph_objects as go
-from flask import Flask, request, render_template, jsonify, redirect, url_for
+from flask import Flask, request, render_template, redirect, url_for
 from werkzeug.utils import secure_filename
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import text
 
 from lib import utils
+from lib.storage import cloud_sql, gcs, gcs_wrapper
 from lib.error import DataExistError, DataNotFoundError
+
 
 logger = utils.get_logger(__name__)
 
@@ -37,18 +31,19 @@ def app_before_request1():
         logger.info(("request.files", request.files))
 
 
+def redirect_top(message):
+    return redirect(url_for("transition", message=message))
+
+
 @app.route('/', methods=["GET"])
 @app.route('/transition', methods=["GET"])
 def transition():
     message = request.args.get("message", None)
     logger.info(("message", message))
 
-    df = utils.load_data()
+    df = cloud_sql.read()
     df = df.sort_values(by="date").reset_index(drop=True)
-    fig = go.Figure(data=[
-        go.Scatter(x=df["date"], y=df["value"], name="sin"),
-    ])
-    graph_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+    graph_json = utils.data2plotly_json(df["date"], df["value"])
 
     return render_template(
         "transition.html",
@@ -63,53 +58,34 @@ def create():
     value = request.form.get("value")
 
     try:
-        utils.create_data(date_, value)
+        cloud_sql.create(date_, value)
         return redirect("/")
 
     except DataExistError as e:
         logger.error(e)
-        return redirect(
-            url_for(
-                "transition",
-                message="すでにデータが存在しているため作成できませんでした"
-            )
-        )
+        return redirect_top("すでにデータが存在しているため作成できませんでした")
 
 @app.route('/detail/<date_>', methods=["GET"])
 def detail(date_):
-    df = utils.load_data(date_)
+    df = cloud_sql.read(date_)
     if len(df) == 0:
         logger.info(("df", df))
-        return redirect(
-            url_for(
-                "transition",
-                message="データが存在しません"
-            )
-        )
+        return redirect_top("データが存在しません")
+
     elif len(df) > 1:
         logger.info(("df", df))
-        return redirect(
-            url_for(
-                "transition",
-                message="データが複数存在しているため詳細ページを表示できません"
-            )
-        )
+        return redirect_top("データが複数存在しているため詳細ページを表示できません")
 
-    # imgs = utils.load_imgs(date_)
-    figs = [
-        go.Figure(data=[
-            go.Scatter(x=df["date"], y=df["value"], name="sin"),
-        ]) for i in range(3)
-    ]
-    imgs = [
-        json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-        for fig in figs
+    file_names, imgs = gcs_wrapper.read_imgs(date_)
+    graph_jsons = [
+        utils.img2plotly_json(img) for img in imgs
     ]
 
     return render_template(
         "detail.html",
         row=df.iloc[0],
-        imgs=imgs
+        file_names=file_names,
+        graph_jsons=graph_jsons
     )
 
 @app.route('/update/<date_>', methods=["GET"])
@@ -117,37 +93,38 @@ def update(date_):
     value = request.args.get("value")
 
     try:
-        utils.update_data(date_, value)
-        return redirect("/")
+        cloud_sql.update(date_, value)
+        return redirect(f"/detail/{date_}")
     except DataNotFoundError as e:
         logger.error(e)
-        return redirect(
-            url_for(
-                "transition",
-                message="データが存在しないため更新できませんでした"
-            )
-        )
+        return redirect_top("データが存在しないため更新できませんでした")
 
 @app.route('/delete/<date_>', methods=["GET"])
 def delete(date_):
-    utils.delete_data(date_)
+    cloud_sql.delete(date_)
     return redirect("/")
 
-def save(*args):
-    pass
-
-@app.route('/upload', methods=["POST"])
-def upload():
+@app.route('/upload/<date_>', methods=["POST"])
+def upload_img(date_):
     files = request.files.getlist('imgs')
     for file in files:
         file_name = secure_filename(file.filename)
-        stream = file.stream
-        img = np.frombuffer(stream.read(), dtype=np.uint8)
         logger.info(("file_name", file_name))
-        logger.info(("img", type(img)))
-        img_pil = Image.fromarray(img)
-        save(img_pil, file_name)
-    return redirect("/")
+        img_pil = Image.open(file)
+
+        try:
+            gcs_wrapper.save_img(img_pil, os.path.join(date_, file_name))
+        except FileExistsError as e:
+            logger.error(e)
+            return redirect_top("すでにファイルが存在しているためアップロードできませんでした")
+
+    return redirect(f"/detail/{date_}")
+
+@app.route('/delete_img/<date_>/<file_name>', methods=["GET"])
+def delete_img(date_, file_name):
+    gcs.delete(f"{date_}/{file_name}")
+    return redirect(f"/detail/{date_}")
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))

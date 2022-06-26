@@ -8,3 +8,4 @@ python-dotenv
 SQLAlchemy
 PyMySQL
 Pillow
+google-cloud-storage

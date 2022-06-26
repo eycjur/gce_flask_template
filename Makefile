@@ -25,7 +25,7 @@ docker-run:
 	-p $(PORT):$(PORT) \
 	--env-file $(shell pwd)/.env \
 	gcr.io/$(PROJECT_ID)/$(CONTAINER_NAME) \
-	bash
+	zsh
 
 .PHONY: docker-server
 docker-server:

@@ -13,6 +13,9 @@ load_dotenv(BASE_DIR / ".env")
 
 
 def get_logger(name, level=logging.DEBUG):
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    gunicorn_logger.setLevel(level)
+
     logger = logging.getLogger(name)
     logger.setLevel(level)
     logger.addHandler(logging.StreamHandler())

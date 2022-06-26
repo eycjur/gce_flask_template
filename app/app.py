@@ -9,7 +9,6 @@ from lib import utils
 from lib.storage import cloud_sql, gcs, gcs_wrapper
 from lib.error import DataExistError, DataNotFoundError
 
-
 logger = utils.get_logger(__name__)
 
 logger.info("")
@@ -20,9 +19,6 @@ logger.info("app started")
 
 @app.before_request
 def app_before_request1():
-    logger.info("")
-    logger.info(("request.path", request.path))
-    logger.info(("request.method", request.method))
     if request.args:
         logger.info(("request.args", request.args))
     if request.form:

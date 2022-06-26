@@ -1,4 +1,5 @@
 import os
+import datetime
 
 import numpy as np
 from PIL import Image
@@ -8,6 +9,7 @@ from werkzeug.utils import secure_filename
 from lib import utils
 from lib.storage import cloud_sql, gcs, gcs_wrapper
 from lib.error import DataExistError, DataNotFoundError
+from lib.validation import ValidateRequestParam, args_type_check
 
 logger = utils.get_logger(__name__)
 
@@ -34,8 +36,14 @@ def redirect_top(message):
 @app.route('/', methods=["GET"])
 @app.route('/transition', methods=["GET"])
 def transition():
-    message = request.args.get("message", None)
-    logger.info(("message", message))
+    schema = {
+        "message": {
+            "type": str,
+            "required": False,
+            "default": None
+        }
+    }
+    param = ValidateRequestParam(request, schema)
 
     df = cloud_sql.read()
     df = df.sort_values(by="date").reset_index(drop=True)
@@ -45,16 +53,25 @@ def transition():
         "transition.html",
         graph_json=graph_json,
         df=df,
-        message=message
+        message=param.message
     )
 
 @app.route('/create', methods=["POST"])
 def create():
-    date_ = request.form.get("date")
-    value = request.form.get("value")
+    schema = {
+        "date": {
+            "type": datetime.date,
+            "required": True
+        },
+        "value": {
+            "type": float,
+            "required": True
+        }
+    }
+    param = ValidateRequestParam(request, schema)
 
     try:
-        cloud_sql.create(date_, value)
+        cloud_sql.create(param.date, param.value)
         return redirect("/")
 
     except DataExistError as e:
@@ -62,7 +79,8 @@ def create():
         return redirect_top("すでにデータが存在しているため作成できませんでした")
 
 @app.route('/detail/<date_>', methods=["GET"])
-def detail(date_):
+@args_type_check
+def detail(date_: datetime.date):
     df = cloud_sql.read(date_)
     if len(df) == 0:
         logger.info(("df", df))
@@ -85,23 +103,32 @@ def detail(date_):
     )
 
 @app.route('/update/<date_>', methods=["GET"])
-def update(date_):
-    value = request.args.get("value")
+@args_type_check
+def update(date_: datetime.date):
+    schema = {
+        "value": {
+            "type": float,
+            "required": True
+        }
+    }
+    param = ValidateRequestParam(request, schema)
 
     try:
-        cloud_sql.update(date_, value)
+        cloud_sql.update(date_, param.value)
         return redirect(f"/detail/{date_}")
     except DataNotFoundError as e:
         logger.error(e)
         return redirect_top("データが存在しないため更新できませんでした")
 
 @app.route('/delete/<date_>', methods=["GET"])
-def delete(date_):
+@args_type_check
+def delete(date_: datetime.date):
     cloud_sql.delete(date_)
     return redirect("/")
 
 @app.route('/upload/<date_>', methods=["POST"])
-def upload_img(date_):
+@args_type_check
+def upload_img(date_: datetime.date):
     files = request.files.getlist('imgs')
     for file in files:
         file_name = secure_filename(file.filename)
@@ -117,7 +144,7 @@ def upload_img(date_):
     return redirect(f"/detail/{date_}")
 
 @app.route('/delete_img/<date_>/<file_name>', methods=["GET"])
-def delete_img(date_, file_name):
+def delete_img(date_: datetime.date, file_name: str):
     gcs.delete(f"{date_}/{file_name}")
     return redirect(f"/detail/{date_}")
 

@@ -9,3 +9,4 @@ SQLAlchemy
 PyMySQL
 Pillow
 google-cloud-storage
+cerberus

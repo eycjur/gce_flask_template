@@ -8,8 +8,11 @@ make
 ## Access
 there is an ip limit.
 
-- http://35.202.165.139:80/
+- http://www.eycjur-weather-log.tk/
 - http://localhost:8000/
 
 ## Warning
 インスタンスを切る
+
+## Use Page
+- [favicon](https://favicon.io/favicon-generator/)

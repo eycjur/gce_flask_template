@@ -1,71 +1,76 @@
 include .env
 shell_name = zsh
 
-# docker-build docker-server
-all: docker-build docker-server
+# DEBUG==Trueのときはflaskを起動し、Falseのときはgunicornを起動する
+ifeq ($(DEBUG),True)
+	run_commnad = python app/app.py
+else
+	run_commnad = gunicorn --bind :$(PORT) --reload app.app:app
+endif
 
-## docker関連
+
+# docker-build docker-server
+all: server
+
+## docker image関連
 # dockerfile->imageの作成
-.PHONY: docker-build
-docker-build:
-	docker build -t $(CONTAINER_NAME) .
-	docker tag $(CONTAINER_NAME) gcr.io/$(PROJECT_ID)/$(CONTAINER_NAME)
+.PHONY: build
+build:
+	docker build -t gcr.io/$(PROJECT_ID)/$(IMAGE_NAME) .
 
 # GCRへのpush
-.PHONY: docker-push
-docker-push:
-	docker push gcr.io/$(PROJECT_ID)/$(CONTAINER_NAME)
+.PHONY: push
+push:
+	docker push gcr.io/$(PROJECT_ID)/$(IMAGE_NAME)
 
-# GCRからのpull
-.PHONY: docker-pull
-docker-pull:
-	docker pull gcr.io/$(PROJECT_ID)/$(CONTAINER_NAME)
+## dockerの確認コマンド
+# 確認
+.PHONY: images
+images:
+	docker images
 
-# docker runして接続
-.PHONY: docker-run
-docker-run:
-	docker run \
-	--rm \
-	-it \
-	-v $(shell pwd)/app:/app \
-	-p $(PORT):$(PORT) \
-	--env-file $(shell pwd)/.env \
-	gcr.io/$(PROJECT_ID)/$(CONTAINER_NAME) \
-	${shell_name}
-
-# serverを起動
-.PHONY: docker-server
-docker-server:
-	docker run \
-	--rm \
-	-it \
-	-v $(shell pwd)/app:/app \
-	-p $(PORT):$(PORT) \
-	--env-file $(shell pwd)/.env \
-	gcr.io/$(PROJECT_ID)/$(CONTAINER_NAME) \
-	gunicorn --bind :$(PORT) --reload app:app
-
-# serverをバックグラウンドで起動
-.PHONY: docker-server-production
-docker-server-production:
-	docker run \
-	--rm \
-	-d \
-	-v $(shell pwd)/app:/app \
-	-p $(PORT):$(PORT) \
-	--env-file $(shell pwd)/.env \
-	gcr.io/$(PROJECT_ID)/$(CONTAINER_NAME) \
-	gunicorn --bind :$(PORT) --reload app:app
+# コンテナを一覧表示
+.PHONY: ps
+ps:
+	docker compose ps -a
 
 # dockerのlogを表示
 .PHONY: logs
 logs:
-	docker logs $(shell docker ps --quiet | head -n 1)
+	docker compose logs
 
-# dockerのcontainerを停止
+## dockerの実行コマンド
+.PHONY: up
+up:
+	docker compose up -d --build
+
+# 実行
+.PHONY: exec
+exec:
+	@make up
+	docker compose exec app ${shell_name}
+
+# serverを起動
+.PHONY: server
+server:
+	@make up
+	docker compose exec app ${run_commnad}
+
+# serverをバックグラウンドで起動
+.PHONY: server-production
+server-production:
+	@make up
+	docker compose exec -d app ${run_commnad}
+
+# コンテナを停止
 .PHONY: stop
 stop:
-	docker stop $(shell docker ps --quiet | head -n 1)
+	docker compose stop
+
+# コンテナを停止して削除
+.PHONY: down
+down:
+	docker compose down --remove-orphans
 
 # dockerの未使用オブジェクトを削除
 .PHONY: prune
@@ -74,9 +79,14 @@ prune:
 
 ## docker内で扱うコマンド
 # serverを起動
-.PHONY: server
-server:
-	cd app && gunicorn --bind :${PORT} --reload app:app
+.PHONY: server-in-docker
+server-in-docker:
+	cd app && ${run_commnad}
+
+# pip freeze
+.PHONY: pip-freeze
+pip-freeze:
+	docker exec -it $(CONTAINER_NAME) pip freeze > requirements.txt
 
 ## GCP関連
 # startup-scriptを実行

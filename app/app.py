@@ -1,15 +1,17 @@
 import os
 import datetime
+import traceback
+from typing import Optional
 
 import numpy as np
 from PIL import Image
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template, redirect, url_for, abort, jsonify
 from werkzeug.utils import secure_filename
+from pydantic import validate_arguments
 
 from lib import utils
 from lib.storage import cloud_sql, gcs, gcs_wrapper
 from lib.error import DataExistError, DataNotFoundError
-from lib.validation import ValidateRequestParam, args_type_check
 
 logger = utils.get_logger(__name__)
 
@@ -17,6 +19,8 @@ logger.info("")
 logger.info("starting app")
 app = Flask(__name__, static_folder='static')
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+logger = app.logger
+logger.setLevel("DEBUG")
 logger.info("app started")
 
 @app.before_request
@@ -32,19 +36,16 @@ def app_before_request1():
 def redirect_top(message):
     return redirect(url_for("transition", message=message))
 
+@app.errorhandler(Exception)
+def error_except(e):
+    logger.warning(("error", e))
+    logger.warning(traceback.format_exc())
+    abort(500, str(e))
 
 @app.route('/', methods=["GET"])
 @app.route('/transition', methods=["GET"])
 def transition():
-    schema = {
-        "message": {
-            "type": str,
-            "required": False,
-            "default": None
-        }
-    }
-    param = ValidateRequestParam(request, schema)
-
+    message = request.args.get("message", "")
     df = cloud_sql.read()
     df = df.sort_values(by="date").reset_index(drop=True)
     graph_json = utils.data2plotly_json(df["date"], df["value"])
@@ -53,25 +54,13 @@ def transition():
         "transition.html",
         graph_json=graph_json,
         df=df,
-        message=param.message
+        message=message
     )
 
 @app.route('/create', methods=["POST"])
 def create():
-    schema = {
-        "date": {
-            "type": datetime.date,
-            "required": True
-        },
-        "value": {
-            "type": float,
-            "required": True
-        }
-    }
-    param = ValidateRequestParam(request, schema)
-
     try:
-        cloud_sql.create(param.date, param.value)
+        cloud_sql.create(request.form["date"], request.form["value"])
         return redirect("/")
 
     except DataExistError as e:
@@ -79,7 +68,7 @@ def create():
         return redirect_top("すでにデータが存在しているため作成できませんでした")
 
 @app.route('/detail/<date_>', methods=["GET"])
-@args_type_check
+@validate_arguments
 def detail(date_: datetime.date):
     df = cloud_sql.read(date_)
     if len(df) == 0:
@@ -103,31 +92,23 @@ def detail(date_: datetime.date):
     )
 
 @app.route('/update/<date_>', methods=["GET"])
-@args_type_check
+@validate_arguments
 def update(date_: datetime.date):
-    schema = {
-        "value": {
-            "type": float,
-            "required": True
-        }
-    }
-    param = ValidateRequestParam(request, schema)
-
     try:
-        cloud_sql.update(date_, param.value)
+        cloud_sql.update(date_, request.args["value"])
         return redirect(f"/detail/{date_}")
     except DataNotFoundError as e:
         logger.error(e)
         return redirect_top("データが存在しないため更新できませんでした")
 
 @app.route('/delete/<date_>', methods=["GET"])
-@args_type_check
+@validate_arguments
 def delete(date_: datetime.date):
     cloud_sql.delete(date_)
     return redirect("/")
 
 @app.route('/upload/<date_>', methods=["POST"])
-@args_type_check
+@validate_arguments
 def upload_img(date_: datetime.date):
     files = request.files.getlist('imgs')
     for file in files:
@@ -136,7 +117,7 @@ def upload_img(date_: datetime.date):
         img_pil = Image.open(file)
 
         try:
-            gcs_wrapper.save_img(img_pil, os.path.join(date_, file_name))
+            gcs_wrapper.save_img(img_pil, os.path.join(str(date_), file_name))
         except FileExistsError as e:
             logger.error(e)
             return redirect_top("すでにファイルが存在しているためアップロードできませんでした")
@@ -144,6 +125,7 @@ def upload_img(date_: datetime.date):
     return redirect(f"/detail/{date_}")
 
 @app.route('/delete_img/<date_>/<file_name>', methods=["GET"])
+@validate_arguments
 def delete_img(date_: datetime.date, file_name: str):
     gcs.delete(f"{date_}/{file_name}")
     return redirect(f"/detail/{date_}")

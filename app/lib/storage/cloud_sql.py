@@ -1,4 +1,5 @@
 import os
+import logging
 
 import pandas as pd
 import sqlalchemy
@@ -34,6 +35,7 @@ ENGINE = get_engine()
 def check_not_none(func):
     def wrapper(*args, **kwargs):
         if any(arg is None for arg in args):
+            logging.warning((f"func:{func.__name__} args", args))
             raise ValueError("Argument is None")
         return func(*args, **kwargs)
     return wrapper

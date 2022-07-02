@@ -16,7 +16,7 @@
   </form>
 
   <!-- Graph -->
-  <div class="container">
+  <div class="container m-2">
     <div class="row">
       {% for file_name in file_names %}
       <div class="container col-md-6 col-lg-4 mx-auto">
@@ -27,14 +27,14 @@
     </div>
   </div>
 
-  <div class="container">
+  <div class="container m-2">
     <form action="/upload/{{ row['date'] }}" method="POST"  enctype="multipart/form-data">
       <input type="file" name="imgs" accept="image/*" multiple required>
       <button type="submit">送信する</button>
     </form>
   </div>
 
-  <div class="container">
+  <div class="container m-2">
     <a href="/">topへ戻る</a>
   </div>
 </div>

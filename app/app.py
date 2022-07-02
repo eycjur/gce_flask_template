@@ -5,7 +5,7 @@ from typing import Optional
 
 import numpy as np
 from PIL import Image
-from flask import Flask, request, render_template, redirect, url_for, abort, jsonify
+from flask import Flask, request, render_template, redirect, url_for, abort, jsonify, escape
 from werkzeug.utils import secure_filename
 from pydantic import validate_arguments
 
@@ -46,6 +46,7 @@ def error_except(e):
 @app.route('/transition', methods=["GET"])
 def transition():
     message = request.args.get("message", "")
+    message = escape(message)
     df = cloud_sql.read()
     df = df.sort_values(by="date").reset_index(drop=True)
     graph_json = utils.data2plotly_json(df["date"], df["value"])

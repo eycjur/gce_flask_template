@@ -2,7 +2,10 @@
 
 ## Quick Start
 ```bash
-make
+# create .env
+make build
+make up
+make server
 ```
 
 ## Access
@@ -12,7 +15,8 @@ there is an ip limit.
 - http://localhost:8000/
 
 ## Warning
-インスタンスを切る
+インスタンスを切る  
+外部ipは変わる可能性がある
 
 ## Use Page
 - [favicon](https://favicon.io/favicon-generator/)

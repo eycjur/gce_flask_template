@@ -86,7 +86,7 @@ server-in-docker:
 # pip freeze
 .PHONY: pip-freeze
 pip-freeze:
-	docker exec -it $(CONTAINER_NAME) pip freeze > requirements.txt
+	docker compose exec app pip freeze > requirements.txt
 
 ## GCP関連
 # startup-scriptを実行
